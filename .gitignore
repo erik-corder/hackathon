@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# image2glb-studio local data (SQLite DB + generated GLB files, dev-only)
+/data/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

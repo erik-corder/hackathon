@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Added this run (FR-19/AC-23 — the Studio's three-pane layout must always
+ * render as a "dark workspace", not only when the visitor's OS is set to a
+ * dark color scheme). Switches Tailwind's `dark:` variant from its default
+ * `prefers-color-scheme` strategy to a class-based one, scoped to any
+ * descendant of an element carrying the `dark` class (applied by
+ * `StudioLayout`) — every existing `dark:` utility class across the app's
+ * atoms/molecules/organisms now activates consistently within that scope. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
