@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BoxGeometry, Group, Mesh, MeshBasicMaterial } from "three";
+import { BoxGeometry, Group, Mesh, MeshBasicMaterial, Texture, TextureLoader } from "three";
+import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { useWorkspaceExport } from "@/components/features/workspace/useWorkspaceExport";
@@ -180,6 +181,56 @@ describe("useWorkspaceExport", () => {
 
     await waitFor(() => expect(clickSpy).toHaveBeenCalledTimes(1));
     expect(result.current.status).toBe("idle");
+  });
+
+  it("awaits the texture fully loading before exporting, instead of exporting a still-loading placeholder (bugfix: 'Export failed' for any textured object)", async () => {
+    // `TextureLoader.load()` returns a placeholder texture synchronously and
+    // only fills in the decoded image asynchronously — the bug was calling
+    // `GLTFExporter.parse()` immediately after, before that image finished
+    // loading. Mocking `loadAsync` to resolve only after a real microtask
+    // delay (not synchronously) reproduces that same race: if the export
+    // hook fired the exporter without awaiting this, `parseSpy` would
+    // already have been called by the time this promise resolves.
+    // `GLTFExporter.parse` itself is mocked for this test only — a bare
+    // `new Texture()` has no real decoded `.image`, which the *real*
+    // exporter legitimately rejects regardless of ordering; that's a
+    // separate concern from what this test isolates (that the hook awaits
+    // the texture before ever calling the exporter at all).
+    let resolveTexture: (() => void) | null = null;
+    const loadAsyncSpy = vi.spyOn(TextureLoader.prototype, "loadAsync").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveTexture = () => resolve(new Texture());
+        }) as ReturnType<TextureLoader["loadAsync"]>,
+    );
+    const parseSpy = vi
+      .spyOn(GLTFExporter.prototype, "parse")
+      .mockImplementation((_input, onDone) => (onDone as (r: ArrayBuffer) => void)(new ArrayBuffer(0)));
+
+    const { result } = renderHook(() => useWorkspaceExport());
+    const withTexture: WorkspaceObject = {
+      ...makeObject("1", "a.glb", { x: 0, y: 0, z: 0 }),
+      material: { color: "#ffffff", textureDataUrl: "data:image/png;base64,fake" },
+    };
+
+    const exportPromise = act(async () => {
+      await result.current.exportSelected(withTexture);
+    });
+
+    // The texture promise hasn't resolved yet — the exporter must not have
+    // run, and the download must not have fired.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(parseSpy).not.toHaveBeenCalled();
+    expect(clickSpy).not.toHaveBeenCalled();
+
+    resolveTexture!();
+    await exportPromise;
+
+    expect(loadAsyncSpy).toHaveBeenCalledWith("data:image/png;base64,fake");
+    await waitFor(() => expect(clickSpy).toHaveBeenCalledTimes(1));
+    expect(result.current.status).toBe("idle");
+    expect(result.current.error).toBeNull();
   });
 
   it("exports a selected object's applied color/texture (AC-11)", async () => {

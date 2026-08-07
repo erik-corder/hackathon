@@ -72,7 +72,7 @@ describe("useWorkspaceObjects", () => {
     });
 
     expect(result.current.objects).toHaveLength(0);
-    expect(result.current.importErrors[0].reason).toContain("exceeds the 20 MB size limit");
+    expect(result.current.importErrors[0].reason).toContain("exceeds the 100 MB size limit");
   });
 
   it("imports the valid file from a mixed batch while rejecting the invalid one, without touching prior objects (AC-8)", async () => {

@@ -11,15 +11,26 @@ import type { WorkspaceObject } from "@/components/shared/types/workspaceObject"
 /** Applies a cloned material reflecting `object.material` (FR-5/AC-11) onto
  * every mesh in `root`, never mutating the loader's/live viewer's shared
  * material instance (`04-lld.md` §3, T-12). No-op when the object has no
- * material override. */
-function applyMaterialOverride(root: Object3D, object: WorkspaceObject): void {
+ * material override.
+ *
+ * Bugfix: `TextureLoader.load()` returns a placeholder texture immediately
+ * and only fills in the actual decoded image asynchronously in the
+ * background — `GLTFExporter.parse()` needs a fully-decoded image to embed
+ * the texture, so calling it right after `.load()` (before the image
+ * finished loading) reliably produced a broken export or an outright
+ * "Export failed" for any object with an uploaded texture. Awaiting
+ * `loadAsync()` here, and awaiting this whole function in
+ * `buildExportGroup`, ensures the texture is fully loaded before the
+ * exporter ever runs. */
+async function applyMaterialOverride(root: Object3D, object: WorkspaceObject): Promise<void> {
   if (!object.material) return;
+  const texture = object.material.textureDataUrl
+    ? await new TextureLoader().loadAsync(object.material.textureDataUrl)
+    : null;
   root.traverse((node) => {
     if (!(node instanceof Mesh)) return;
     const material = new MeshStandardMaterial({ color: new Color(object.material?.color ?? "#ffffff") });
-    if (object.material?.textureDataUrl) {
-      material.map = new TextureLoader().load(object.material.textureDataUrl);
-    }
+    if (texture) material.map = texture;
     node.material = material;
   });
 }
@@ -64,7 +75,7 @@ async function buildExportGroup(objects: WorkspaceObject[]): Promise<Group> {
       const gltf = await loader.loadAsync(object.url);
       root = gltf.scene.clone(true) as Object3D;
     }
-    applyMaterialOverride(root, object);
+    await applyMaterialOverride(root, object);
     root.position.set(object.transform.position.x, object.transform.position.y, object.transform.position.z);
     root.rotation.set(object.transform.rotation.x, object.transform.rotation.y, object.transform.rotation.z);
     root.scale.set(object.transform.scale.x, object.transform.scale.y, object.transform.scale.z);

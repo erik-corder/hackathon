@@ -1,8 +1,12 @@
 /** Case-insensitive `.glb` extension, the required minimum validation bar (A-5). */
 export const ACCEPTED_GLB_EXTENSION = ".glb";
-/** UX-only echo of the existing `MAX_UPLOAD_BYTES` convention (FR-5/A-4), mirroring
- * `env.ts`'s server default (20 MB) client-side, same pattern as `useSubmitGeneration.ts`. */
-export const MAX_GLB_UPLOAD_BYTES = 20 * 1024 * 1024;
+/** Workspace GLB imports get their own, larger limit than the generation
+ * flow's `MAX_UPLOAD_BYTES` (20 MB, for source images): a generated or
+ * externally-authored `.glb` is frequently much larger than a source photo,
+ * so 20 MB was rejecting legitimate models. Same pattern/convention as
+ * `env.ts`'s server default and `useSubmitGeneration.ts`, just a different
+ * ceiling for this different kind of upload. */
+export const MAX_GLB_UPLOAD_BYTES = 100 * 1024 * 1024;
 /** A valid `.glb` binary starts with ASCII "glTF" (0x676c5446), little-endian. */
 const GLB_MAGIC = 0x46546c67;
 

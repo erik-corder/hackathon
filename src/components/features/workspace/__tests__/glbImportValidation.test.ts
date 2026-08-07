@@ -29,7 +29,7 @@ describe("validateGlbImport", () => {
   it("rejects an oversized .glb file by name and the size limit (AC-7)", () => {
     const result = validateGlbImport({ fileName: "big.glb", sizeBytes: MAX_GLB_UPLOAD_BYTES + 1 });
     expect(result.ok).toBe(false);
-    expect(result.reason).toBe("big.glb exceeds the 20 MB size limit.");
+    expect(result.reason).toBe("big.glb exceeds the 100 MB size limit.");
   });
 
   it("accepts a .glb file exactly at the size limit", () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { MAX_GLB_UPLOAD_BYTES } from "@/components/features/workspace/glbImportValidation";
 import { FileDropzone } from "@/components/molecules/FileDropzone";
 import type { ImportErrorView } from "@/components/shared/types/workspaceObject";
 
@@ -28,7 +29,7 @@ export function WorkspaceImportPanel({ importErrors, onFilesSelected, onDismissE
         accept={ACCEPTED_TYPES}
         multiple
         label="Import GLB files"
-        helpText="GLB files, up to 20 MB each"
+        helpText={`GLB files, up to ${MAX_GLB_UPLOAD_BYTES / (1024 * 1024)} MB each`}
       />
       {importErrors.length > 0 ? (
         <ul className="flex flex-col gap-1">
