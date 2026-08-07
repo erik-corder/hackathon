@@ -9,6 +9,7 @@ describe("useAccordionState", () => {
 
     expect(result.current.expanded).toEqual({
       objects: true,
+      transform: true,
       lights: true,
       shapes: true,
       materials: true,

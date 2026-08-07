@@ -79,23 +79,37 @@ describe("WorkspaceLightingPanel", () => {
     expect(onSelectLight).toHaveBeenCalledWith("1");
   });
 
-  it("duplicates the targeted light (AC-12)", async () => {
+  it("duplicates the targeted light via its overflow menu (AC-12)", async () => {
     const onDuplicateLight = vi.fn();
     const user = userEvent.setup();
     renderPanel({ lights: [makeLight({ id: "1", type: "point" })], onDuplicateLight });
 
-    await user.click(screen.getByRole("button", { name: "Duplicate point light" }));
+    await user.click(screen.getByRole("button", { name: "More actions for point light" }));
+    await user.click(screen.getByRole("menuitem", { name: "Duplicate point light" }));
 
     expect(onDuplicateLight).toHaveBeenCalledWith("1");
   });
 
-  it("resets the targeted light's transform (AC-16)", async () => {
+  it("resets the targeted light's transform via its overflow menu (AC-16)", async () => {
     const onResetLight = vi.fn();
     const user = userEvent.setup();
     renderPanel({ lights: [makeLight({ id: "1", type: "point" })], onResetLight });
 
-    await user.click(screen.getByRole("button", { name: "Reset point light transform" }));
+    await user.click(screen.getByRole("button", { name: "More actions for point light" }));
+    await user.click(screen.getByRole("menuitem", { name: "Reset point light transform" }));
 
     expect(onResetLight).toHaveBeenCalledWith("1");
+  });
+
+  it("renders exactly one Position/Target editor for the selected light, in the shared location (AC-13)", () => {
+    renderPanel({ lights: [makeLight({ id: "1", type: "point" })], selectedLightId: "1" });
+
+    expect(screen.getAllByText("Position")).toHaveLength(1);
+  });
+
+  it("renders no Position/Target editor when nothing is selected (AC-12)", () => {
+    renderPanel({ lights: [makeLight({ id: "1", type: "point" })], selectedLightId: null });
+
+    expect(screen.queryByText("Position")).not.toBeInTheDocument();
   });
 });

@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
-
-import { Button } from "@/components/atoms/Button";
-import { Select } from "@/components/atoms/Select";
+import { WorkspaceAddLightControl } from "@/components/molecules/WorkspaceAddLightControl";
 import { WorkspaceLightListItem } from "@/components/molecules/WorkspaceLightListItem";
+import { WorkspaceLightTransformInputs } from "@/components/organisms/WorkspaceLightTransformInputs";
 import type { LightSource, LightType } from "@/components/shared/types/lightSource";
 
 export interface WorkspaceLightingPanelProps {
@@ -18,12 +16,6 @@ export interface WorkspaceLightingPanelProps {
   onResetLight: (id: string) => void;
   onRenameLight: (id: string, name: string) => void;
 }
-
-const LIGHT_TYPE_OPTIONS: { value: LightType; label: string }[] = [
-  { value: "point", label: "Point" },
-  { value: "spot", label: "Spot" },
-  { value: "directional", label: "Directional" },
-];
 
 /**
  * "Add light" control plus the list of configured lights (FR-1, FR-2, FR-6,
@@ -42,24 +34,14 @@ export function WorkspaceLightingPanel({
   onResetLight,
   onRenameLight,
 }: WorkspaceLightingPanelProps) {
-  const [selectedType, setSelectedType] = useState<LightType>("point");
+  const selectedLight = lights.find((light) => light.id === selectedLightId) ?? null;
 
   return (
     <section aria-labelledby="workspace-lighting-heading" className="flex flex-col gap-2">
       <h2 id="workspace-lighting-heading" className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
         Lighting ({lights.length})
       </h2>
-      <div className="flex items-center gap-2">
-        <Select
-          aria-label="New light type"
-          options={LIGHT_TYPE_OPTIONS}
-          value={selectedType}
-          onChange={(event) => setSelectedType(event.target.value as LightType)}
-        />
-        <Button type="button" variant="secondary" size="sm" onClick={() => onAddLight(selectedType)}>
-          Add light
-        </Button>
-      </div>
+      <WorkspaceAddLightControl onAddLight={onAddLight} />
       {lights.length === 0 ? (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           No lights added yet — the scene uses a minimal fallback light.
@@ -81,6 +63,7 @@ export function WorkspaceLightingPanel({
           ))}
         </ul>
       )}
+      <WorkspaceLightTransformInputs selectedLight={selectedLight} onCommitLight={onUpdateLight} />
     </section>
   );
 }

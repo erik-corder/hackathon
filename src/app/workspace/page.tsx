@@ -6,17 +6,12 @@ import { useViewerSettings } from "@/components/features/workspace/useViewerSett
 import { useWorkspaceEditor } from "@/components/features/workspace/useWorkspaceEditor";
 import { AccordionSection } from "@/components/molecules/AccordionSection";
 import { WorkspaceHistoryControls } from "@/components/molecules/WorkspaceHistoryControls";
-import { WorkspaceExportControls } from "@/components/organisms/WorkspaceExportControls";
-import { WorkspaceHistoryImportList } from "@/components/organisms/WorkspaceHistoryImportList";
-import { WorkspaceImportPanel } from "@/components/organisms/WorkspaceImportPanel";
-import { WorkspaceLightingPanel } from "@/components/organisms/WorkspaceLightingPanel";
-import { WorkspaceMaterialPanel } from "@/components/organisms/WorkspaceMaterialPanel";
+import { WorkspaceLightListItem } from "@/components/molecules/WorkspaceLightListItem";
+import { WorkspaceGlobalToolPanel } from "@/components/organisms/WorkspaceGlobalToolPanel";
+import { WorkspaceImportRibbon } from "@/components/organisms/WorkspaceImportRibbon";
 import { WorkspaceObjectList } from "@/components/organisms/WorkspaceObjectList";
-import { WorkspaceShapePanel } from "@/components/organisms/WorkspaceShapePanel";
-import { WorkspaceSnappingPanel } from "@/components/organisms/WorkspaceSnappingPanel";
-import { WorkspaceTransformInputs } from "@/components/organisms/WorkspaceTransformInputs";
+import { WorkspaceSelectionToolPanel } from "@/components/organisms/WorkspaceSelectionToolPanel";
 import { WorkspaceViewer } from "@/components/organisms/WorkspaceViewer";
-import { WorkspaceViewerSettingsPanel } from "@/components/organisms/WorkspaceViewerSettingsPanel";
 import { WorkspaceTemplate } from "@/components/templates/WorkspaceTemplate";
 
 /**
@@ -84,14 +79,12 @@ export default function WorkspacePage() {
   return (
     <WorkspaceTemplate
       import={
-        <>
-          <WorkspaceImportPanel
-            importErrors={importErrors}
-            onFilesSelected={(files) => void importFiles(files)}
-            onDismissError={dismissImportError}
-          />
-          <WorkspaceHistoryImportList onImport={importFromHistory} />
-        </>
+        <WorkspaceImportRibbon
+          importErrors={importErrors}
+          onFilesSelected={(files) => void importFiles(files)}
+          onDismissError={dismissImportError}
+          onImportFromHistory={importFromHistory}
+        />
       }
       viewer={
         <WorkspaceViewer
@@ -110,7 +103,21 @@ export default function WorkspacePage() {
       }
       objectPanel={
         <>
-          <AccordionSection title="Objects" expanded={expanded.objects} onToggle={() => toggle("objects")}>
+          {/* Always visible regardless of selection (bugfix: this list
+           * previously lived only inside the per-selection panel, so it was
+           * unreachable — e.g. right after adding a shape, or whenever
+           * nothing happened to be selected — with no way to see, rename,
+           * duplicate, or remove existing objects or lights). Lists both
+           * objects and lights, each with only their basic actions
+           * (select/rename/duplicate/remove) — sizing/transform and
+           * material/color/shadow editing stay in their own contextual
+           * sections below, not duplicated here. Lights are omitted here
+           * while a light is already selected — `WorkspaceLightingPanel`
+           * (rendered lower via `WorkspaceSelectionToolPanel`) already
+           * lists lights in that state for its own per-light detail
+           * controls, and showing both would be a literal duplicate list
+           * with two identically-labeled rows. */}
+          <AccordionSection title="Layers" expanded={expanded.objects} onToggle={() => toggle("objects")}>
             <WorkspaceObjectList
               objects={objects}
               selectedId={selectedId}
@@ -123,10 +130,32 @@ export default function WorkspacePage() {
               onResetTransform={resetTransform}
               onRename={rename}
             />
-            <WorkspaceTransformInputs selectedObject={selectedObject} onCommitTransform={updateTransform} />
+            {lights.length > 0 && !selectedLightId ? (
+              <ul className="flex flex-col gap-2">
+                {lights.map((light) => (
+                  <WorkspaceLightListItem
+                    key={light.id}
+                    light={light}
+                    isSelected={light.id === selectedLightId}
+                    onUpdate={updateLight}
+                    onRemove={removeLight}
+                    onSelect={selectLight}
+                    onDuplicate={duplicateLight}
+                    onReset={resetLight}
+                    onRename={renameLight}
+                  />
+                ))}
+              </ul>
+            ) : null}
           </AccordionSection>
-          <AccordionSection title="Lights" expanded={expanded.lights} onToggle={() => toggle("lights")}>
-            <WorkspaceLightingPanel
+          {selectedId ? (
+            <WorkspaceSelectionToolPanel
+              kind="object"
+              expanded={expanded}
+              onToggleSection={toggle}
+              selectedObject={selectedObject}
+              onCommitTransform={updateTransform}
+              onUpdateMaterial={updateMaterial}
               lights={lights}
               selectedLightId={selectedLightId}
               onAddLight={addLight}
@@ -137,15 +166,30 @@ export default function WorkspacePage() {
               onResetLight={resetLight}
               onRenameLight={renameLight}
             />
-          </AccordionSection>
-          <AccordionSection title="Shapes" expanded={expanded.shapes} onToggle={() => toggle("shapes")}>
-            <WorkspaceShapePanel onAddPrimitive={addPrimitive} />
-          </AccordionSection>
-          <AccordionSection title="Materials" expanded={expanded.materials} onToggle={() => toggle("materials")}>
-            <WorkspaceMaterialPanel selectedObject={selectedObject} onUpdateMaterial={updateMaterial} />
-          </AccordionSection>
-          <AccordionSection title="Snapping" expanded={expanded.snapping} onToggle={() => toggle("snapping")}>
-            <WorkspaceSnappingPanel
+          ) : selectedLightId ? (
+            <WorkspaceSelectionToolPanel
+              kind="light"
+              expanded={expanded}
+              onToggleSection={toggle}
+              selectedObject={selectedObject}
+              onCommitTransform={updateTransform}
+              onUpdateMaterial={updateMaterial}
+              lights={lights}
+              selectedLightId={selectedLightId}
+              onAddLight={addLight}
+              onUpdateLight={updateLight}
+              onRemoveLight={removeLight}
+              onSelectLight={selectLight}
+              onDuplicateLight={duplicateLight}
+              onResetLight={resetLight}
+              onRenameLight={renameLight}
+            />
+          ) : (
+            <WorkspaceGlobalToolPanel
+              expanded={expanded}
+              onToggleSection={toggle}
+              onAddPrimitive={addPrimitive}
+              onAddLight={addLight}
               snapConfig={snapConfig}
               onSetTranslateEnabled={setTranslateEnabled}
               onSetRotateEnabled={setRotateEnabled}
@@ -153,19 +197,11 @@ export default function WorkspacePage() {
               onSetTranslateStep={setTranslateStep}
               onSetRotateStep={setRotateStep}
               onSetScaleStep={setScaleStep}
-            />
-            <WorkspaceViewerSettingsPanel
               viewerSettings={viewerSettings}
-              onSetSceneWireframe={viewerSettings.setSceneWireframe}
-              onSetBackground={viewerSettings.setBackground}
-              onSetGridVisible={viewerSettings.setGridVisible}
-              onSetGridCellSize={viewerSettings.setGridCellSize}
-              onSetGridSectionSize={viewerSettings.setGridSectionSize}
+              objects={objects}
+              selectedObject={selectedObject}
             />
-          </AccordionSection>
-          <AccordionSection title="Export" expanded={expanded.export} onToggle={() => toggle("export")}>
-            <WorkspaceExportControls objects={objects} selectedObject={selectedObject} />
-          </AccordionSection>
+          )}
         </>
       }
     />

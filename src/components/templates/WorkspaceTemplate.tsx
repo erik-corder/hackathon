@@ -16,19 +16,19 @@ export interface WorkspaceTemplateProps {
  */
 export function WorkspaceTemplate({ import: importSlot, viewer, objectPanel }: WorkspaceTemplateProps) {
   return (
-    <div className="dark flex min-h-screen w-full flex-col bg-zinc-950 text-zinc-50 md:flex-row">
+    <div className="dark flex h-full w-full flex-col bg-zinc-950 text-zinc-50 md:flex-row">
       <aside
         aria-label="Import GLB models"
-        className="flex w-full flex-col gap-8 border-b border-zinc-800 p-6 md:w-80 md:flex-shrink-0 md:overflow-y-auto md:border-b-0 md:border-r"
+        className="flex w-full flex-col gap-8 border-b border-zinc-800 p-6 md:w-auto md:h-full md:flex-shrink-0 md:overflow-y-auto md:border-b-0 md:border-r"
       >
         {importSlot}
       </aside>
-      <main aria-label="Workspace 3D viewer" className="min-w-0 flex-1 p-6">
+      <main aria-label="Workspace 3D viewer" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-6">
         {viewer}
       </main>
       <aside
         aria-label="Workspace objects and export"
-        className="flex w-full flex-col gap-4 border-t border-zinc-800 p-6 md:w-80 md:flex-shrink-0 md:overflow-y-auto md:border-t-0 md:border-l"
+        className="flex w-full flex-col gap-4 border-t border-zinc-800 p-6 md:w-80 md:h-full md:flex-shrink-0 md:overflow-y-auto md:border-t-0 md:border-l"
       >
         {objectPanel}
       </aside>

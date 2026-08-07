@@ -42,38 +42,55 @@ describe("WorkspaceLightListItem", () => {
     expect(onSelect).toHaveBeenCalledWith("light-1");
   });
 
-  it("duplicates the light (AC-12)", async () => {
+  it("duplicates the light via the overflow menu (AC-12, AC-16)", async () => {
     const onDuplicate = vi.fn();
     const user = userEvent.setup();
     renderItem({ onDuplicate });
 
-    await user.click(screen.getByRole("button", { name: "Duplicate point light" }));
+    await user.click(screen.getByRole("button", { name: "More actions for point light" }));
+    await user.click(screen.getByRole("menuitem", { name: "Duplicate point light" }));
 
     expect(onDuplicate).toHaveBeenCalledWith("light-1");
   });
 
-  it("resets the light's transform (AC-16)", async () => {
+  it("resets the light's transform via the overflow menu (AC-16)", async () => {
     const onReset = vi.fn();
     const user = userEvent.setup();
     renderItem({ onReset });
 
-    await user.click(screen.getByRole("button", { name: "Reset point light transform" }));
+    await user.click(screen.getByRole("button", { name: "More actions for point light" }));
+    await user.click(screen.getByRole("menuitem", { name: "Reset point light transform" }));
 
     expect(onReset).toHaveBeenCalledWith("light-1");
   });
 
-  it("commits a rename on blur (AC-19)", async () => {
+  it("commits a rename on blur, triggered from the overflow menu (AC-19)", async () => {
     const onRename = vi.fn();
     const user = userEvent.setup();
     renderItem({ onRename });
 
-    await user.click(screen.getByRole("button", { name: "Rename point light" }));
+    await user.click(screen.getByRole("button", { name: "More actions for point light" }));
+    await user.click(screen.getByRole("menuitem", { name: "Rename point light" }));
     const input = screen.getByLabelText("Rename point light");
     await user.clear(input);
     await user.type(input, "Key light");
     await user.tab();
 
     expect(onRename).toHaveBeenCalledWith("light-1", "Key light");
+  });
+
+  it("does not render a per-row Position/Target editor when unselected (AC-12)", () => {
+    renderItem({ isSelected: false });
+    expect(screen.queryByText("Position")).not.toBeInTheDocument();
+    expect(screen.queryByText("Direction / target")).not.toBeInTheDocument();
+  });
+
+  it("shows the most-used action(s) inline and an overflow menu for the rest (AC-16)", () => {
+    renderItem();
+    expect(screen.getByRole("button", { name: "point" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove point light" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "More actions for point light" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Duplicate point light" })).not.toBeInTheDocument();
   });
 
   it("removes the light (AC-3)", async () => {

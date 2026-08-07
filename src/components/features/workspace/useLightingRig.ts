@@ -48,6 +48,12 @@ export function useLightingRig(): UseLightingRigResult {
     const id = crypto.randomUUID();
     const newLight: LightSource = { id, ...createDefaultLight(type) };
     setLights((prev) => [...prev, newLight]);
+    // Mirrors `useWorkspaceObjects.addPrimitive`'s auto-select behavior so a
+    // newly added light is immediately reachable via the selection-specific
+    // tool panel (FR-9/FR-10) — without this, "Add light" from the
+    // global/scene-level tool set would add a light with no way to select it
+    // (the Lights section only renders once something is selected).
+    setSelectedLightId(id);
     return id;
   }, []);
 

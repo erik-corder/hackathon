@@ -68,12 +68,13 @@ describe("WorkspaceObjectList", () => {
     expect(screen.getByRole("button", { name: "b.glb" })).not.toHaveAttribute("aria-current");
   });
 
-  it("duplicates the targeted object (AC-13)", async () => {
+  it("duplicates the targeted object via its overflow menu (AC-13, AC-14)", async () => {
     const onDuplicate = vi.fn();
     const user = userEvent.setup();
     renderList({ onDuplicate });
 
-    await user.click(screen.getByRole("button", { name: "Duplicate a.glb" }));
+    await user.click(screen.getByRole("button", { name: "More actions for a.glb" }));
+    await user.click(screen.getByRole("menuitem", { name: "Duplicate a.glb" }));
 
     expect(onDuplicate).toHaveBeenCalledWith("1");
   });

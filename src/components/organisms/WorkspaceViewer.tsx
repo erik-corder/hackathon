@@ -117,7 +117,16 @@ function SceneLight({ light, isSelected, onSelect, registerRef }: SceneLightProp
           />
         </>
       )}
-      {isSelected ? <mesh scale={0.15}><sphereGeometry args={[1, 8, 8]} /><meshBasicMaterial color="#facc15" wireframe /></mesh> : null}
+      {/* Always-rendered clickable proxy: raycasting only hits meshes with
+       * geometry, not light objects themselves, so without this a light
+       * could never be clicked/selected in the scene in the first place
+       * (previously this mesh only rendered once `isSelected` was already
+       * true, which is unreachable). Rendered at every light regardless of
+       * selection state, just styled differently when selected. */}
+      <mesh scale={0.15} onClick={handleClick}>
+        <sphereGeometry args={[1, 12, 12]} />
+        <meshBasicMaterial color={isSelected ? "#facc15" : light.color} wireframe={isSelected} transparent opacity={isSelected ? 1 : 0.85} />
+      </mesh>
     </group>
   );
 }
@@ -190,7 +199,18 @@ function WorkspacePrimitiveMesh({ object }: { object: WorkspaceObject; sceneWire
   };
   return (
     <mesh castShadow receiveShadow geometry={geometry}>
-      <meshStandardMaterial color={materialProps.color} wireframe={materialProps.wireframe} map={texture ?? undefined} />
+      {/* `key` forces a fresh material instance whenever a texture is
+       * added/removed. R3F otherwise mutates the same material instance in
+       * place, but three.js compiles a shader with/without the USE_MAP
+       * define based on whether `map` was present at compile time — just
+       * assigning a new `map` value on an already-rendered material doesn't
+       * trigger a recompile, so an uploaded texture silently never appeared. */}
+      <meshStandardMaterial
+        key={texture ? "textured" : "plain"}
+        color={materialProps.color}
+        wireframe={materialProps.wireframe}
+        map={texture ?? undefined}
+      />
     </mesh>
   );
 }
@@ -206,6 +226,7 @@ interface OverridableMaterial {
   color?: { set: (value: string) => void };
   map?: unknown;
   wireframe?: boolean;
+  needsUpdate?: boolean;
 }
 
 function WorkspaceGltfMesh({ object, sceneWireframe }: { object: WorkspaceObject; sceneWireframe: boolean }) {
@@ -220,7 +241,14 @@ function WorkspaceGltfMesh({ object, sceneWireframe }: { object: WorkspaceObject
       const material = (node as unknown as { material?: OverridableMaterial }).material;
       if (!material) return;
       if (object.material?.color) material.color?.set(object.material.color);
-      if (texture) material.map = texture;
+      // Assigning `.map` on an already-rendered material doesn't by itself
+      // trigger three.js to recompile the shader with the USE_MAP define —
+      // `needsUpdate` is required, same root cause as the primitive-mesh
+      // fix above, otherwise an uploaded texture never actually renders.
+      if (texture) {
+        material.map = texture;
+        material.needsUpdate = true;
+      }
       material.wireframe = wireframe;
     });
   }, [scene, object.material?.color, texture, wireframe]);
@@ -300,9 +328,11 @@ export function WorkspaceViewer({
   const isLightSelected = Boolean(selectedLightId);
   const activeSelectedId = isLightSelected ? selectedLightId : selectedId;
   const selectedGroup = activeSelectedId ? groups[activeSelectedId] ?? null : null;
-  // FR-1: translate mode only while a light is selected — no rotate/scale
-  // option is offered (out-of-scope item, AC-1).
-  const effectiveGizmoMode: GizmoMode = isLightSelected ? "translate" : gizmoMode;
+  // FR-5: lights use the same gizmo-mode switcher/state as objects — no
+  // hard-locked translate-only mode (rotate/scale are offered for parity even
+  // though only position/target commit for a light today, per FR-5's scope
+  // note).
+  const effectiveGizmoMode: GizmoMode = gizmoMode;
 
   function handleGizmoChange(): void {
     if (!selectedGroup) return;
@@ -354,8 +384,17 @@ export function WorkspaceViewer({
     onSelectLight?.(id);
   }
 
+  // Clicking empty canvas space must clear whichever kind of selection is
+  // active — previously only the object selection was cleared here, so a
+  // selected light could only ever be replaced by selecting something else,
+  // never deselected by clicking away.
+  function handleDeselectAll(): void {
+    handleSelectObject(null);
+    handleSelectLight(null);
+  }
+
   return (
-    <section aria-labelledby="workspace-viewer-heading" className="flex flex-col gap-3">
+    <section aria-labelledby="workspace-viewer-heading" className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2 id="workspace-viewer-heading" className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
           Workspace scene
@@ -371,7 +410,7 @@ export function WorkspaceViewer({
               Focus selected
             </button>
           ) : null}
-          {selectedId && !isLightSelected ? (
+          {activeSelectedId ? (
             <div role="group" aria-label="Transform gizmo mode" className="flex items-center gap-1">
               {(["translate", "rotate", "scale"] as const).map((mode) => (
                 <button
@@ -394,9 +433,9 @@ export function WorkspaceViewer({
       </div>
       <div
         data-testid="workspace-canvas-area"
-        className="aspect-square overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
+        className="min-h-0 flex-1 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
       >
-        <Canvas camera={{ position: [4, 4, 4] }} shadows onPointerMissed={() => handleSelectObject(null)}>
+        <Canvas camera={{ position: [4, 4, 4] }} shadows onPointerMissed={handleDeselectAll}>
           {viewerSettings.background === "clear-dark" || viewerSettings.background === "clear-light" ? (
             <color attach="background" args={[BACKGROUND_COLORS[viewerSettings.background]]} />
           ) : (
@@ -418,7 +457,17 @@ export function WorkspaceViewer({
             ))
           )}
           {viewerSettings.gridVisible ? (
-            <Grid args={[viewerSettings.gridSectionSize, viewerSettings.gridSectionSize]} cellSize={viewerSettings.gridCellSize} sectionSize={viewerSettings.gridSectionSize} />
+            // Explicit cell/section colors instead of drei's defaults
+            // (near-black), which were invisible against the dark
+            // background presets — zinc-500/zinc-300 read clearly against
+            // both "clear-dark" and "clear-light".
+            <Grid
+              args={[20, 20]}
+              cellSize={viewerSettings.gridCellSize}
+              sectionSize={viewerSettings.gridSectionSize}
+              cellColor="#71717a"
+              sectionColor="#d4d4d8"
+            />
           ) : null}
           <mesh receiveShadow rotation-x={-Math.PI / 2} position-y={-0.001}>
             <planeGeometry args={[20, 20]} />
@@ -446,7 +495,7 @@ export function WorkspaceViewer({
               onMouseUp={() => setIsDraggingGizmo(false)}
             />
           ) : null}
-          <OrbitControls ref={orbitRef} makeDefault enabled={!isDraggingGizmo} />
+          <OrbitControls ref={orbitRef} makeDefault enabled={!isDraggingGizmo} enablePan />
         </Canvas>
       </div>
     </section>

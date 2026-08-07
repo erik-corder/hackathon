@@ -191,9 +191,13 @@ export function useWorkspaceEditor(): UseWorkspaceEditorResult {
   const addLight = useCallback(
     (type: LightType) => {
       recordSnapshot();
+      // `useLightingRig.addLight` auto-selects the new light (mirrors
+      // `addPrimitive`'s auto-select) — clear any selected object so the two
+      // selections stay mutually exclusive, matching `select`/`selectLight`.
+      workspaceObjects.select(null);
       lightingRig.addLight(type);
     },
-    [recordSnapshot, lightingRig],
+    [recordSnapshot, lightingRig, workspaceObjects],
   );
 
   const updateLight = useCallback(

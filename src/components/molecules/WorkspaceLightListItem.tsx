@@ -7,9 +7,8 @@ import { ColorInput } from "@/components/atoms/ColorInput";
 import { IconButton } from "@/components/atoms/IconButton";
 import { NumberInput } from "@/components/atoms/NumberInput";
 import { TextInput } from "@/components/atoms/TextInput";
-import { Vec3NumericInputGroup } from "@/components/molecules/Vec3NumericInputGroup";
+import { OverflowMenu } from "@/components/molecules/OverflowMenu";
 import type { LightSource } from "@/components/shared/types/lightSource";
-import type { Vec3Tuple } from "@/components/shared/types/workspaceObject";
 
 export interface WorkspaceLightListItemProps {
   light: LightSource;
@@ -30,29 +29,16 @@ function RemoveIcon() {
   );
 }
 
-function DuplicateIcon() {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="h-4 w-4">
-      <path d="M7 3a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H7Zm0 2h6v8H7V5ZM4 7a1 1 0 0 0-1 1v8a2 2 0 0 0 2 2h6a1 1 0 1 0 0-2H5V8a1 1 0 0 0-1-1Z" />
-    </svg>
-  );
-}
-
-function ResetIcon() {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="h-4 w-4">
-      <path d="M10 3a7 7 0 1 0 6.32 4H14.5a5 5 0 1 1-1.36-2.36L11 7h6V1l-2.06 2.06A6.98 6.98 0 0 0 10 3Z" />
-    </svg>
-  );
-}
-
 /**
- * One light row: read-only type badge, color/intensity/shadow toggle, and
- * position/target numeric editors, plus select/duplicate/reset/rename/remove
- * actions (FR-1, FR-6, FR-10, FR-13 — mirrors `WorkspaceObjectListItem.tsx`'s
- * per-row action precedent, `04-lld.md` §T-8). Purely presentational — driven
- * entirely by props, owner hook is `useLightingRig` via
- * `WorkspaceLightingPanel`.
+ * One light row (FR-8): an editable name as the primary row content, plus the
+ * "most-used" light actions inline (select via type badge, remove), with the
+ * remaining existing per-light actions (rename trigger, duplicate, reset,
+ * color, intensity, cast-shadow) relocated behind a per-row "⋮"
+ * `OverflowMenu` — no action removed, only relocated (NFR-1). Position/target
+ * editing now lives only in the single shared `WorkspaceLightTransformInputs`
+ * location for the selected light (FR-6), not duplicated per-row. Purely
+ * presentational — driven entirely by props, owner hook is `useLightingRig`
+ * via `WorkspaceLightingPanel`.
  */
 export function WorkspaceLightListItem({
   light,
@@ -64,8 +50,6 @@ export function WorkspaceLightListItem({
   onReset,
   onRename,
 }: WorkspaceLightListItemProps) {
-  const showPosition = light.type === "point" || light.type === "spot";
-  const showTarget = light.type === "spot" || light.type === "directional";
   const label = light.name ?? `${light.type} light`;
   const [isRenaming, setIsRenaming] = useState(false);
   const [draftName, setDraftName] = useState(label);
@@ -112,7 +96,21 @@ export function WorkspaceLightListItem({
         ) : (
           <span className="flex-1 truncate text-sm text-zinc-700 dark:text-zinc-300">{label}</span>
         )}
-        <div className="flex items-center gap-2">
+        <IconButton aria-label={`Remove ${light.type} light`} onClick={() => onRemove(light.id)}>
+          <RemoveIcon />
+        </IconButton>
+        <OverflowMenu
+          aria-label={`More actions for ${label}`}
+          items={[
+            {
+              key: "rename",
+              label: isRenaming ? `Cancel rename of ${label}` : `Rename ${label}`,
+              onSelect: () => setIsRenaming((prev) => !prev),
+            },
+            { key: "duplicate", label: `Duplicate ${light.type} light`, onSelect: () => onDuplicate(light.id) },
+            { key: "reset", label: `Reset ${light.type} light transform`, onSelect: () => onReset(light.id) },
+          ]}
+        >
           <ColorInput
             aria-label={`${light.type} light color`}
             value={light.color}
@@ -133,39 +131,8 @@ export function WorkspaceLightListItem({
             checked={light.castShadow}
             onChange={(event) => onUpdate(light.id, { castShadow: event.target.checked })}
           />
-          <IconButton
-            aria-label={isRenaming ? `Cancel rename of ${label}` : `Rename ${label}`}
-            onClick={() => setIsRenaming((prev) => !prev)}
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="h-4 w-4">
-              <path d="M13.586 3.586a2 2 0 1 1 2.828 2.828l-8.5 8.5a2 2 0 0 1-.878.507l-3 .857a.5.5 0 0 1-.618-.618l.857-3a2 2 0 0 1 .507-.878l8.504-8.196Z" />
-            </svg>
-          </IconButton>
-          <IconButton aria-label={`Duplicate ${light.type} light`} onClick={() => onDuplicate(light.id)}>
-            <DuplicateIcon />
-          </IconButton>
-          <IconButton aria-label={`Reset ${light.type} light transform`} onClick={() => onReset(light.id)}>
-            <ResetIcon />
-          </IconButton>
-          <IconButton aria-label={`Remove ${light.type} light`} onClick={() => onRemove(light.id)}>
-            <RemoveIcon />
-          </IconButton>
-        </div>
+        </OverflowMenu>
       </div>
-      {showPosition ? (
-        <Vec3NumericInputGroup
-          legend="Position"
-          value={light.position}
-          onCommit={(next: Vec3Tuple) => onUpdate(light.id, { position: next })}
-        />
-      ) : null}
-      {showTarget ? (
-        <Vec3NumericInputGroup
-          legend="Direction / target"
-          value={light.target}
-          onCommit={(next: Vec3Tuple) => onUpdate(light.id, { target: next })}
-        />
-      ) : null}
     </li>
   );
 }

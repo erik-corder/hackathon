@@ -2,9 +2,9 @@
 
 import { useState, type KeyboardEvent } from "react";
 
-import { Checkbox } from "@/components/atoms/Checkbox";
 import { IconButton } from "@/components/atoms/IconButton";
 import { TextInput } from "@/components/atoms/TextInput";
+import { OverflowMenu } from "@/components/molecules/OverflowMenu";
 import type { WorkspaceObject } from "@/components/shared/types/workspaceObject";
 
 export interface WorkspaceObjectListItemProps {
@@ -27,14 +27,6 @@ function RemoveIcon() {
   );
 }
 
-function DuplicateIcon() {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="h-4 w-4">
-      <path d="M7 3a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H7Zm0 2h6v8H7V5ZM4 7a1 1 0 0 0-1 1v8a2 2 0 0 0 2 2h6a1 1 0 1 0 0-2H5V8a1 1 0 0 0-1-1Z" />
-    </svg>
-  );
-}
-
 function VisibilityIcon({ hidden }: { hidden: boolean }) {
   return hidden ? (
     <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="h-4 w-4">
@@ -47,18 +39,12 @@ function VisibilityIcon({ hidden }: { hidden: boolean }) {
   );
 }
 
-function ResetIcon() {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="h-4 w-4">
-      <path d="M10 3a7 7 0 1 0 6.32 4H14.5a5 5 0 1 1-1.36-2.36L11 7h6V1l-2.06 2.06A6.98 6.98 0 0 0 10 3Z" />
-    </svg>
-  );
-}
-
-/** One workspace object row: label + select/duplicate/remove actions (unchanged, NFR-7),
- * plus visibility/wireframe toggles, a reset-transform action, and an inline
- * rename control (FR-7, FR-8, FR-10, FR-13) — purely presentational, driven
- * by props (mirrors `HistoryListItem.tsx`). */
+/** One workspace object row (FR-7): an editable name as the primary row
+ * content, at most two inline actions (visibility, remove), and every other
+ * existing action (rename trigger, duplicate, reset-transform, wireframe)
+ * relocated behind a per-row "⋮" `OverflowMenu` — no action removed, only
+ * relocated (NFR-1). Purely presentational, driven by props (mirrors
+ * `HistoryListItem.tsx`). */
 export function WorkspaceObjectListItem({
   object,
   isSelected,
@@ -117,34 +103,33 @@ export function WorkspaceObjectListItem({
           </button>
         )}
         <IconButton
-          aria-label={isRenaming ? `Cancel rename of ${label}` : `Rename ${label}`}
-          onClick={() => setIsRenaming((prev) => !prev)}
-        >
-          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="h-4 w-4">
-            <path d="M13.586 3.586a2 2 0 1 1 2.828 2.828l-8.5 8.5a2 2 0 0 1-.878.507l-3 .857a.5.5 0 0 1-.618-.618l.857-3a2 2 0 0 1 .507-.878l8.504-8.196Z" />
-          </svg>
-        </IconButton>
-        <IconButton aria-label={`Duplicate ${label}`} onClick={() => onDuplicate(object.id)}>
-          <DuplicateIcon />
-        </IconButton>
-        <IconButton
           aria-label={object.visible ? `Hide ${label}` : `Show ${label}`}
           onClick={() => onSetVisible(object.id, !object.visible)}
         >
           <VisibilityIcon hidden={!object.visible} />
         </IconButton>
-        <IconButton aria-label={`Reset transform of ${label}`} onClick={() => onResetTransform(object.id)}>
-          <ResetIcon />
-        </IconButton>
         <IconButton aria-label={`Remove ${label}`} onClick={() => onRemove(object.id)}>
           <RemoveIcon />
         </IconButton>
+        <OverflowMenu
+          aria-label={`More actions for ${label}`}
+          items={[
+            {
+              key: "rename",
+              label: isRenaming ? `Cancel rename of ${label}` : `Rename ${label}`,
+              onSelect: () => setIsRenaming((prev) => !prev),
+            },
+            { key: "duplicate", label: `Duplicate ${label}`, onSelect: () => onDuplicate(object.id) },
+            { key: "reset", label: `Reset transform of ${label}`, onSelect: () => onResetTransform(object.id) },
+            {
+              key: "wireframe",
+              label: "Wireframe",
+              checked: object.wireframe,
+              onSelect: () => onSetWireframe(object.id, !object.wireframe),
+            },
+          ]}
+        />
       </div>
-      <Checkbox
-        label="Wireframe"
-        checked={object.wireframe}
-        onChange={(event) => onSetWireframe(object.id, event.target.checked)}
-      />
     </li>
   );
 }

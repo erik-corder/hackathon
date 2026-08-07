@@ -37,7 +37,7 @@ describe("WorkspaceMaterialControls", () => {
     // input's `accept` attribute (the exact case under test), so the
     // rejection path is exercised via `fireEvent.change` directly instead.
     const file = new File(["not an image"], "doc.txt", { type: "text/plain" });
-    const fileInput = screen.getByLabelText("Upload texture image");
+    const fileInput = screen.getByLabelText("Texture file");
     fireEvent.change(fileInput, { target: { files: [file] } });
 
     expect(await screen.findByRole("alert")).toHaveTextContent("doc.txt is not an image file.");
@@ -50,7 +50,7 @@ describe("WorkspaceMaterialControls", () => {
     render(<WorkspaceMaterialControls object={OBJECT} onUpdateMaterial={onUpdateMaterial} />);
 
     const file = new File(["fake-image-bytes"], "texture.png", { type: "image/png" });
-    const fileInput = screen.getByLabelText("Upload texture image");
+    const fileInput = screen.getByLabelText("Texture file");
     await user.upload(fileInput, file);
 
     await waitFor(() =>

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 
-export type SectionId = "objects" | "lights" | "shapes" | "materials" | "snapping" | "export";
+export type SectionId = "objects" | "transform" | "lights" | "shapes" | "materials" | "snapping" | "export";
 
 export interface UseAccordionStateResult {
   expanded: Record<SectionId, boolean>;
@@ -11,6 +11,7 @@ export interface UseAccordionStateResult {
 
 const DEFAULT_EXPANDED: Record<SectionId, boolean> = {
   objects: true,
+  transform: true,
   lights: true,
   shapes: true,
   materials: true,
@@ -19,10 +20,14 @@ const DEFAULT_EXPANDED: Record<SectionId, boolean> = {
 };
 
 /**
- * Owns the sidebar's per-section collapse state (FR-3): six independently
+ * Owns the sidebar's per-section collapse state (FR-3): independently
  * toggleable sections, all defaulting to expanded. Pure in-memory `useState`,
  * no persistence (NFR-5) — session-only, same tier as `useSnapConfig.ts`
- * (R-4's mitigation).
+ * (R-4's mitigation). "objects" now backs the always-visible Layers section
+ * (bugfix: it previously only rendered while something was selected,
+ * making the object list unreachable the rest of the time); "transform" is
+ * a new section for the selected-object-only position/rotation/scale
+ * inputs that used to share the "objects" section with the list.
  */
 export function useAccordionState(): UseAccordionStateResult {
   const [expanded, setExpanded] = useState<Record<SectionId, boolean>>(DEFAULT_EXPANDED);
